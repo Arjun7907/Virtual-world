@@ -11,6 +11,12 @@ export default function Home() {
         </div>
         <nav className="flex items-center gap-3">
           <Link
+            href="/globe"
+            className="rounded-full px-4 py-2 text-sm font-medium text-slate-300 hover:text-white transition"
+          >
+            View live globe
+          </Link>
+          <Link
             href="/login"
             className="rounded-full px-4 py-2 text-sm font-medium text-slate-300 hover:text-white transition"
           >
@@ -43,16 +49,16 @@ export default function Home() {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
             <Link
-              href="/signup"
+              href="/globe"
               className="rounded-full bg-indigo-500 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-indigo-500/30 hover:bg-indigo-400 transition"
             >
-              Create your avatar
+              Open the live globe
             </Link>
             <Link
-              href="/login"
+              href="/signup"
               className="rounded-full border border-slate-700 px-6 py-3 text-base font-semibold text-slate-200 hover:border-slate-500 transition"
             >
-              I already have an account
+              Create your avatar to show up on it
             </Link>
           </div>
         </section>
