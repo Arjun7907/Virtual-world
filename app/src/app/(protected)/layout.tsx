@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import StoreProvider from "@/components/StoreProvider";
 import WorldNav from "@/components/WorldNav";
+import GlobePresence from "@/components/GlobePresence";
 import type { AvatarColor, InventoryItem, VirtualWorldInit, Venture, JobProgress } from "@/lib/store";
 import type { VentureType } from "@/lib/ventures";
 import type { JobId } from "@/lib/jobs";
@@ -73,6 +74,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
 
   return (
     <StoreProvider init={init}>
+      <GlobePresence />
       <div className="flex flex-1 flex-col">
         <WorldNav />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">{children}</main>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LiveMapSection from "@/components/LiveMapSection";
 
 const ACTIVITIES = [
   {
@@ -93,6 +94,8 @@ export default function Home() {
             </Link>
           </div>
         </section>
+
+        <LiveMapSection />
 
         <section className="mx-auto grid max-w-5xl grid-cols-1 gap-5 px-6 pb-24 sm:grid-cols-2 lg:grid-cols-4">
           {ACTIVITIES.map((a) => (
