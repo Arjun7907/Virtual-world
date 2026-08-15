@@ -2,19 +2,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useGlobeViewers, type GlobeViewer } from "@/lib/globeMap";
 import LiveGlobe from "@/components/LiveGlobe";
 import { AVATAR_BG_CLASS } from "@/lib/avatarColors";
+import StoreProvider from "@/components/StoreProvider";
+import GlobePresence from "@/components/GlobePresence";
+import type { VirtualWorldInit } from "@/lib/store";
 
-export default function GlobePage() {
+function GlobeChrome({ signedIn }: { signedIn: boolean }) {
   const router = useRouter();
   const viewers = useGlobeViewers();
   const [selected, setSelected] = useState<GlobeViewer | null>(null);
 
   async function signOut() {
     await createClient().auth.signOut();
-    router.push("/login");
+    router.push("/");
     router.refresh();
   }
 
@@ -29,15 +33,26 @@ export default function GlobePage() {
         </p>
       </div>
 
-      <button
-        onClick={signOut}
-        className="fixed top-7 right-7 z-10 font-mono text-xs text-slate-500 hover:text-slate-300"
-      >
-        sign out
-      </button>
+      {signedIn ? (
+        <button
+          onClick={signOut}
+          className="fixed top-7 right-7 z-10 font-mono text-xs text-slate-500 hover:text-slate-300"
+        >
+          sign out
+        </button>
+      ) : (
+        <div className="fixed top-7 right-7 z-10 flex items-center gap-4 font-mono text-xs text-slate-500">
+          <Link href="/login" className="hover:text-slate-300">
+            log in
+          </Link>
+          <Link href="/signup" className="hover:text-slate-300">
+            sign up
+          </Link>
+        </div>
+      )}
 
-      <div className="pointer-events-none fixed bottom-6 left-1/2 z-10 -translate-x-1/2 font-mono text-xs text-slate-500">
-        click a light to say hi
+      <div className="pointer-events-none fixed bottom-6 left-1/2 z-10 -translate-x-1/2 text-center font-mono text-xs text-slate-500">
+        {signedIn ? "click a light to say hi" : "sign up to show up as a light yourself"}
       </div>
 
       <aside
@@ -53,7 +68,9 @@ export default function GlobePage() {
             >
               ← back to the globe
             </button>
-            <span className={`mb-4 block h-16 w-16 rounded-full border-2 border-slate-700 ${AVATAR_BG_CLASS[selected.color]}`} />
+            <span
+              className={`mb-4 block h-16 w-16 rounded-full border-2 border-slate-700 ${AVATAR_BG_CLASS[selected.color]}`}
+            />
             <h2 className="mb-1 text-2xl font-medium">{selected.name}</h2>
             <p className="mb-5 font-mono text-xs tracking-wide text-amber-400 uppercase">
               exploring near {selected.city}
@@ -66,5 +83,16 @@ export default function GlobePage() {
         )}
       </aside>
     </div>
+  );
+}
+
+export default function GlobeView({ identity }: { identity: VirtualWorldInit | null }) {
+  if (!identity) return <GlobeChrome signedIn={false} />;
+
+  return (
+    <StoreProvider init={identity}>
+      <GlobePresence />
+      <GlobeChrome signedIn />
+    </StoreProvider>
   );
 }

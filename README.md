@@ -1,9 +1,10 @@
 # Virtual World — Live Globe
 
-A live, privacy-conscious view of who's online right now. Create an account,
-opt in to share your city, and you show up as a glowing point on a rotating
-3D globe alongside everyone else currently online — no replay, no
-simulation, just real people in real time.
+A live, privacy-conscious view of who's online right now. Anyone can open the
+globe and watch, no account needed. Create an account and opt in to share
+your city, and you show up as a glowing point on it yourself, alongside
+everyone else currently online — no replay, no simulation, just real people
+in real time.
 
 The app lives in [`app/`](./app). `reference-repos.zip` and `live-globe.zip`
 at the repo root are open-source/prototype references kept purely for design
@@ -15,13 +16,14 @@ inspiration; only ideas (not code) were carried over into this app.
   currently opted in, with a live "N explorers online" count.
 - **Sign up / log in** (`/signup`, `/login`) — real Supabase email/password
   auth. Pick a name and avatar color when you sign up.
-- **Live globe** (`/globe`, logged-in only) — a full-screen rotating 3D globe.
-  After you opt in to location sharing (a one-time consent prompt), your
-  device's GPS reading is snapped to the nearest of ~20 world-city anchors
-  (`src/lib/cityAnchors.ts`) before it's ever broadcast — nothing more
-  precise than "which city, roughly" leaves the browser. Nothing is stored in
-  a database: your presence is broadcast only while you're online, via
-  Supabase Realtime Presence, so declining or closing the tab removes you
+- **Live globe** (`/globe`) — a full-screen rotating 3D globe, open to
+  anyone, signed in or not. If you're signed in, you also get a one-time
+  consent prompt to share your location; your device's GPS reading is
+  snapped to the nearest of ~20 world-city anchors (`src/lib/cityAnchors.ts`)
+  before it's ever broadcast — nothing more precise than "which city,
+  roughly" leaves the browser. Nothing is stored in a database: your
+  presence is broadcast only while you're online, via Supabase Realtime
+  Presence, so declining, signing out, or closing the tab removes you
   instantly. Click a light to see who it is; new joins get a brief ripple.
 
 ## Tech stack
@@ -43,16 +45,19 @@ Auth is real: `/signup` and `/login` call Supabase Auth
 `profiles` row (avatar name/color) auto-created by a Postgres trigger
 (`handle_new_user`).
 
-Route protection happens in two layers:
+`/globe` itself is public — no route protection needed there. The only auth
+redirect left is `src/proxy.ts` (Next 16 renamed `middleware.ts` → `proxy.ts`)
+sending already-signed-in users away from `/login`/`/signup` to `/globe`,
+via `src/lib/supabase/middleware.ts`.
 
-- `src/proxy.ts` (Next 16 renamed `middleware.ts` → `proxy.ts`) redirects
-  signed-out visitors away from `/globe`, and signed-in users away from
-  `/login`/`/signup`, using `src/lib/supabase/middleware.ts`.
-- `src/app/(protected)/layout.tsx` is a Server Component that re-checks the
-  session, fetches the user's profile (avatar name/color) straight from
-  Postgres, and seeds a per-request Zustand store (`src/lib/store.ts` +
-  `src/components/StoreProvider.tsx`) via React context — not a module-level
-  singleton, so concurrent requests from different users never share state.
+`src/app/globe/page.tsx` is a Server Component that checks for a session
+without requiring one: if signed in, it fetches the user's profile (avatar
+name/color) from Postgres and seeds a per-request Zustand store
+(`src/lib/store.ts` + `src/components/StoreProvider.tsx`) via React context —
+not a module-level singleton, so concurrent requests from different users
+never share state. `src/components/GlobeView.tsx` renders the full-screen
+globe either way, only mounting the store/consent-banner/sign-out UI when
+there's an identity to hang them on.
 
 Renaming your avatar or changing its color updates the Zustand store
 optimistically and writes through to Supabase via
@@ -106,10 +111,9 @@ app/src/
   app/
     page.tsx                    landing page (teaser globe)
     login/, signup/              real Supabase auth
-    (protected)/                 route group: fetches user data server-side,
-                                  seeds the store
-      globe/page.tsx             full-screen live globe
+    globe/page.tsx               public full-screen live globe (identity optional)
   components/
+    GlobeView.tsx                 full-screen globe chrome, works signed-in or not
     LiveGlobe.tsx, LiveMapSection.tsx  the 3D globe + its landing-page teaser
     GlobePresence.tsx              opt-in consent banner + location broadcaster
     StoreProvider.tsx
