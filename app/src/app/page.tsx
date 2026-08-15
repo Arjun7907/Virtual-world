@@ -17,6 +17,11 @@ const ACTIVITIES = [
     description: "Start a venture that earns coins for you over time, even while you're away.",
   },
   {
+    emoji: "🏛️",
+    title: "Trade",
+    description: "Buy, sell, and bid on gear with real players on the Exchange — escrowed, live auctions.",
+  },
+  {
     emoji: "🍳",
     title: "Cook",
     description: "Follow interactive recipes in the kitchen and plate up before the timer runs out.",
