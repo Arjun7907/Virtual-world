@@ -29,7 +29,7 @@ export default function LoginPage() {
       setError(signInError.message);
       return;
     }
-    router.push("/world");
+    router.push("/globe");
     router.refresh();
   }
 

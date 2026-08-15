@@ -43,7 +43,7 @@ export default function SignupPage() {
       setCheckEmail(true);
       return;
     }
-    router.push("/world");
+    router.push("/globe");
     router.refresh();
   }
 
@@ -76,7 +76,7 @@ export default function SignupPage() {
         </Link>
         <h1 className="mb-1 text-2xl font-bold">Create your avatar</h1>
         <p className="mb-6 text-sm text-slate-400">
-          You&apos;ll start with 150 coins to spend at the shop, kitchen, and arcade.
+          Pick a name and color, then (if you opt in) show up as a light on the live global map.
         </p>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1 text-sm">
