@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Virtual World — Live as your virtual me",
+  title: "Virtual World — Live globe",
   description:
-    "A living virtual world where you shop, cook, and play games as your own avatar.",
+    "A live, privacy-conscious 3D globe showing who's online right now, wherever they are.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

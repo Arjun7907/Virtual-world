@@ -22,20 +22,22 @@ interface Point {
 export default function LiveGlobe({
   viewers,
   onSelect,
+  className = "mx-auto aspect-square w-full max-w-[440px]",
 }: {
   viewers: GlobeViewer[];
   onSelect?: (viewer: GlobeViewer) => void;
+  className?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
-  const [size, setSize] = useState(360);
+  const [dims, setDims] = useState({ width: 360, height: 360 });
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (!containerRef.current) return;
     const observer = new ResizeObserver((entries) => {
-      const width = entries[0]?.contentRect.width;
-      if (width) setSize(Math.round(width));
+      const rect = entries[0]?.contentRect;
+      if (rect) setDims({ width: Math.round(rect.width), height: Math.round(rect.height) });
     });
     observer.observe(containerRef.current);
     return () => observer.disconnect();
@@ -63,11 +65,11 @@ export default function LiveGlobe({
     .map((v) => ({ lat: v.lat, lng: v.lng, color: AVATAR_HEX[v.color] }));
 
   return (
-    <div ref={containerRef} className="mx-auto aspect-square w-full max-w-[440px]">
+    <div ref={containerRef} className={className}>
       <Globe
         ref={globeRef}
-        width={size}
-        height={size}
+        width={dims.width}
+        height={dims.height}
         backgroundColor="rgba(0,0,0,0)"
         showAtmosphere
         atmosphereColor="#818cf8"
