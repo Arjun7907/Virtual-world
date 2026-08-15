@@ -71,6 +71,7 @@ export default function LiveGlobe({
         width={dims.width}
         height={dims.height}
         backgroundColor="rgba(0,0,0,0)"
+        globeImageUrl="/earth-night.jpg"
         showAtmosphere
         atmosphereColor="#818cf8"
         atmosphereAltitude={0.22}
