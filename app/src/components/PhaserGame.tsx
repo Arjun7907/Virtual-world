@@ -108,6 +108,7 @@ const POSITION_EMIT_INTERVAL_MS = 120;
 interface OtherSprite {
   circle: Phaser.GameObjects.Arc;
   label: Phaser.GameObjects.Text;
+  shadow: Phaser.GameObjects.Ellipse;
   targetX: number;
   targetY: number;
 }
@@ -154,10 +155,12 @@ export default function PhaserGame({
 
       class HubScene extends Phaser.Scene implements HubSceneLike {
         player!: Phaser.GameObjects.Arc & { body: Phaser.Physics.Arcade.Body };
+        playerShadow!: Phaser.GameObjects.Ellipse;
         cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
         wasd!: { W: Phaser.Input.Keyboard.Key; A: Phaser.Input.Keyboard.Key; S: Phaser.Input.Keyboard.Key; D: Phaser.Input.Keyboard.Key };
         enterKey!: Phaser.Input.Keyboard.Key;
         zoneGraphics: Phaser.GameObjects.Zone[] = [];
+        zoneOutlines: Map<string, Phaser.GameObjects.Graphics> = new Map();
         currentZoneId: string | null = null;
         promptText!: Phaser.GameObjects.Text;
         otherSprites: Map<string, OtherSprite> = new Map();
@@ -169,22 +172,81 @@ export default function PhaserGame({
 
         create() {
           sceneRef.current = this;
-          this.cameras.main.setBackgroundColor("#0f172a");
+          this.cameras.main.setBackgroundColor("#0b1220");
 
-          // Ground
-          this.add.rectangle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, WORLD_WIDTH - 20, WORLD_HEIGHT - 20, 0x111827).setStrokeStyle(2, 0x1e293b);
+          // Ground with a soft border and a subtle dot-grid texture.
+          const ground = this.add.graphics();
+          ground.fillStyle(0x0f172a, 1);
+          ground.fillRoundedRect(10, 10, WORLD_WIDTH - 20, WORLD_HEIGHT - 20, 20);
+          ground.lineStyle(2, 0x1e293b, 1);
+          ground.strokeRoundedRect(10, 10, WORLD_WIDTH - 20, WORLD_HEIGHT - 20, 20);
+          ground.fillStyle(0x1e293b, 0.45);
+          for (let gx = 34; gx < WORLD_WIDTH - 20; gx += 32) {
+            for (let gy = 34; gy < WORLD_HEIGHT - 20; gy += 32) {
+              ground.fillCircle(gx, gy, 1.3);
+            }
+          }
 
-          // Decorative path
-          this.add.rectangle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 140, 140, 0x1e293b, 0.6).setStrokeStyle(2, 0x334155);
-          this.add.text(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, "🌳", { fontSize: "40px" }).setOrigin(0.5);
+          // Central plaza with a gently pulsing fountain.
+          const plazaX = WORLD_WIDTH / 2;
+          const plazaY = WORLD_HEIGHT / 2;
+          const plaza = this.add.graphics();
+          plaza.fillStyle(0x1e293b, 0.55);
+          plaza.fillCircle(plazaX, plazaY, 90);
+          plaza.lineStyle(2, 0x334155, 0.9);
+          plaza.strokeCircle(plazaX, plazaY, 90);
 
-          // Buildings / zones
+          const fountain = this.add.graphics();
+          fountain.fillStyle(0x0ea5e9, 0.22);
+          fountain.fillCircle(plazaX, plazaY, 36);
+          fountain.lineStyle(2, 0x38bdf8, 0.7);
+          fountain.strokeCircle(plazaX, plazaY, 36);
+          fountain.fillStyle(0x38bdf8, 0.55);
+          fountain.fillCircle(plazaX, plazaY, 15);
+          this.tweens.add({
+            targets: fountain,
+            alpha: { from: 0.55, to: 1 },
+            duration: 1500,
+            yoyo: true,
+            repeat: -1,
+            ease: "Sine.easeInOut",
+          });
+
+          [
+            { x: plazaX - 115, y: plazaY - 55 },
+            { x: plazaX + 115, y: plazaY - 55 },
+            { x: plazaX - 115, y: plazaY + 55 },
+            { x: plazaX + 115, y: plazaY + 55 },
+          ].forEach((spot) => {
+            this.add.text(spot.x, spot.y, "🌳", { fontSize: "24px" }).setOrigin(0.5).setAlpha(0.85);
+          });
+
+          // Buildings / zones — soft shadow, rounded gradient body, roof accent.
           WORLD_ZONES.forEach((zone) => {
             const cx = zone.x + zone.width / 2;
             const cy = zone.y + zone.height / 2;
-            this.add
-              .rectangle(cx, cy, zone.width, zone.height, zone.color, 0.25)
-              .setStrokeStyle(2, zone.color);
+            const radius = 14;
+
+            const shadow = this.add.graphics();
+            shadow.fillStyle(0x000000, 0.3);
+            shadow.fillRoundedRect(zone.x + 3, zone.y + 6, zone.width, zone.height, radius);
+
+            const body = Phaser.Display.Color.IntegerToColor(zone.color);
+            const top = body.clone().lighten(15).color;
+            const bottom = body.clone().darken(5).color;
+
+            const outline = this.add.graphics();
+            outline.fillGradientStyle(top, top, bottom, bottom, 0.32, 0.32, 0.18, 0.18);
+            outline.fillRoundedRect(zone.x, zone.y, zone.width, zone.height, radius);
+            outline.lineStyle(2, zone.color, 0.9);
+            outline.strokeRoundedRect(zone.x, zone.y, zone.width, zone.height, radius);
+            outline.lineStyle(3, 0xffffff, 0.22);
+            outline.beginPath();
+            outline.moveTo(zone.x + radius, zone.y + 3);
+            outline.lineTo(zone.x + zone.width - radius, zone.y + 3);
+            outline.strokePath();
+            this.zoneOutlines.set(zone.id, outline);
+
             this.add
               .text(cx, cy - 16, zone.icon, { fontSize: "34px" })
               .setOrigin(0.5);
@@ -203,6 +265,8 @@ export default function PhaserGame({
           });
 
           // Player
+          this.playerShadow = this.add.ellipse(SPAWN_X, SPAWN_Y + 14, 26, 10, 0x000000, 0.35);
+
           const hex = AVATAR_HEX[avatarColor].replace("#", "0x");
           const player = this.add.circle(SPAWN_X, SPAWN_Y, 16, parseInt(hex, 16));
           player.setStrokeStyle(3, 0xffffff);
@@ -255,13 +319,14 @@ export default function PhaserGame({
             const targetY = p.y ?? SPAWN_Y;
             let entry = this.otherSprites.get(p.userId);
             if (!entry) {
+              const shadow = this.add.ellipse(targetX, targetY + 14, 24, 9, 0x000000, 0.3);
               const hex = parseInt(AVATAR_HEX[p.color].replace("#", "0x"), 16);
               const circle = this.add.circle(targetX, targetY, 16, hex).setAlpha(0.85);
               circle.setStrokeStyle(2, 0xffffff, 0.6);
               const label = this.add
                 .text(targetX, targetY + 26, p.name, { fontSize: "12px", color: "#94a3b8" })
                 .setOrigin(0.5);
-              entry = { circle, label, targetX, targetY };
+              entry = { circle, label, shadow, targetX, targetY };
               this.otherSprites.set(p.userId, entry);
             } else {
               entry.targetX = targetX;
@@ -273,6 +338,7 @@ export default function PhaserGame({
             if (!seen.has(id)) {
               entry.circle.destroy();
               entry.label.destroy();
+              entry.shadow.destroy();
               this.otherSprites.delete(id);
             }
           }
@@ -293,6 +359,12 @@ export default function PhaserGame({
           else if (down) body.setVelocityY(PLAYER_SPEED);
           body.velocity.normalize().scale(PLAYER_SPEED * (left || right || up || down ? 1 : 0));
 
+          const isMoving = left || right || up || down;
+          const bob = isMoving ? 1 + Math.sin(this.time.now / 70) * 0.06 : 1;
+          this.player.setScale(bob);
+          this.playerShadow.setPosition(this.player.x, this.player.y + 14);
+          this.playerShadow.setScale(isMoving ? 1 / bob : 1);
+
           const nameTag = this.children.getByName("nameTag") as Phaser.GameObjects.Text;
           if (nameTag) {
             nameTag.setPosition(this.player.x, this.player.y + 26);
@@ -307,6 +379,7 @@ export default function PhaserGame({
             entry.circle.x = Phaser.Math.Linear(entry.circle.x, entry.targetX, 0.15);
             entry.circle.y = Phaser.Math.Linear(entry.circle.y, entry.targetY, 0.15);
             entry.label.setPosition(entry.circle.x, entry.circle.y + 26);
+            entry.shadow.setPosition(entry.circle.x, entry.circle.y + 14);
           });
 
           const previousZoneId = this.currentZoneId;
@@ -322,6 +395,14 @@ export default function PhaserGame({
               this.currentZoneId = (zone as unknown as { zoneId: string }).zoneId;
             }
           });
+
+          if (this.currentZoneId !== previousZoneId) {
+            if (previousZoneId) this.zoneOutlines.get(previousZoneId)?.setAlpha(1);
+          }
+          if (this.currentZoneId) {
+            const glow = 0.75 + Math.sin(this.time.now / 150) * 0.25;
+            this.zoneOutlines.get(this.currentZoneId)?.setAlpha(glow);
+          }
 
           const zoneMeta = WORLD_ZONES.find((z) => z.id === this.currentZoneId) ?? null;
           if (this.currentZoneId !== previousZoneId) {
