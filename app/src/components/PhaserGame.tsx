@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type Phaser from "phaser";
 import { AVATAR_HEX } from "@/lib/avatarColors";
 import type { AvatarColor } from "@/lib/store";
+import type { PresenceUser } from "@/lib/presence";
 
 export interface WorldZone {
   id: string;
@@ -23,21 +24,32 @@ export const WORLD_ZONES: WorldZone[] = [
     label: "Shop",
     icon: "🛍️",
     color: 0xf43f5e,
-    x: 90,
-    y: 90,
-    width: 200,
-    height: 140,
+    x: 40,
+    y: 70,
+    width: 180,
+    height: 120,
     href: "/world/shop",
+  },
+  {
+    id: "work",
+    label: "Work",
+    icon: "💼",
+    color: 0x22c55e,
+    x: 310,
+    y: 70,
+    width: 180,
+    height: 120,
+    href: "/world/work",
   },
   {
     id: "kitchen",
     label: "Kitchen",
     icon: "🍳",
     color: 0xf59e0b,
-    x: 510,
-    y: 90,
-    width: 200,
-    height: 140,
+    x: 580,
+    y: 70,
+    width: 180,
+    height: 120,
     href: "/world/kitchen",
   },
   {
@@ -45,10 +57,10 @@ export const WORLD_ZONES: WorldZone[] = [
     label: "Arcade",
     icon: "🕹️",
     color: 0x8b5cf6,
-    x: 90,
-    y: 370,
-    width: 200,
-    height: 140,
+    x: 40,
+    y: 410,
+    width: 180,
+    height: 120,
     href: "/world/arcade",
   },
   {
@@ -56,10 +68,10 @@ export const WORLD_ZONES: WorldZone[] = [
     label: "Profile",
     icon: "🧑‍🎤",
     color: 0x0ea5e9,
-    x: 510,
-    y: 370,
-    width: 200,
-    height: 140,
+    x: 580,
+    y: 410,
+    width: 180,
+    height: 120,
     href: "/profile",
   },
 ];
@@ -67,17 +79,49 @@ export const WORLD_ZONES: WorldZone[] = [
 const WORLD_WIDTH = 800;
 const WORLD_HEIGHT = 600;
 const PLAYER_SPEED = 220;
+const SPAWN_X = WORLD_WIDTH / 2;
+const SPAWN_Y = WORLD_HEIGHT / 2 + 40;
+const POSITION_EMIT_INTERVAL_MS = 120;
+
+interface OtherSprite {
+  circle: Phaser.GameObjects.Arc;
+  label: Phaser.GameObjects.Text;
+  targetX: number;
+  targetY: number;
+}
+
+interface HubSceneLike {
+  syncOthers: (list: PresenceUser[]) => void;
+}
 
 interface PhaserGameProps {
   avatarColor: AvatarColor;
   avatarName: string;
   onEnterZone: (href: string) => void;
+  otherPlayers: PresenceUser[];
+  onPositionChange: (x: number, y: number) => void;
 }
 
-export default function PhaserGame({ avatarColor, avatarName, onEnterZone }: PhaserGameProps) {
+export default function PhaserGame({
+  avatarColor,
+  avatarName,
+  onEnterZone,
+  otherPlayers,
+  onPositionChange,
+}: PhaserGameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
+  const sceneRef = useRef<HubSceneLike | null>(null);
+  const onPositionChangeRef = useRef(onPositionChange);
   const [activeZone, setActiveZone] = useState<WorldZone | null>(null);
+
+  useEffect(() => {
+    onPositionChangeRef.current = onPositionChange;
+  }, [onPositionChange]);
+
+  useEffect(() => {
+    sceneRef.current?.syncOthers(otherPlayers);
+  }, [otherPlayers]);
 
   useEffect(() => {
     let destroyed = false;
@@ -86,7 +130,7 @@ export default function PhaserGame({ avatarColor, avatarName, onEnterZone }: Pha
       const Phaser = (await import("phaser")).default;
       if (destroyed || !containerRef.current) return;
 
-      class HubScene extends Phaser.Scene {
+      class HubScene extends Phaser.Scene implements HubSceneLike {
         player!: Phaser.GameObjects.Arc & { body: Phaser.Physics.Arcade.Body };
         cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
         wasd!: { W: Phaser.Input.Keyboard.Key; A: Phaser.Input.Keyboard.Key; S: Phaser.Input.Keyboard.Key; D: Phaser.Input.Keyboard.Key };
@@ -94,12 +138,15 @@ export default function PhaserGame({ avatarColor, avatarName, onEnterZone }: Pha
         zoneGraphics: Phaser.GameObjects.Zone[] = [];
         currentZoneId: string | null = null;
         promptText!: Phaser.GameObjects.Text;
+        otherSprites: Map<string, OtherSprite> = new Map();
+        lastEmit = 0;
 
         constructor() {
           super("hub");
         }
 
         create() {
+          sceneRef.current = this;
           this.cameras.main.setBackgroundColor("#0f172a");
 
           // Ground
@@ -135,7 +182,7 @@ export default function PhaserGame({ avatarColor, avatarName, onEnterZone }: Pha
 
           // Player
           const hex = AVATAR_HEX[avatarColor].replace("#", "0x");
-          const player = this.add.circle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2 + 40, 16, parseInt(hex, 16));
+          const player = this.add.circle(SPAWN_X, SPAWN_Y, 16, parseInt(hex, 16));
           player.setStrokeStyle(3, 0xffffff);
           this.physics.add.existing(player);
           this.player = player as typeof this.player;
@@ -143,7 +190,7 @@ export default function PhaserGame({ avatarColor, avatarName, onEnterZone }: Pha
           this.player.body.setCircle(16);
 
           this.add
-            .text(WORLD_WIDTH / 2, WORLD_HEIGHT / 2 + 62, avatarName, {
+            .text(SPAWN_X, SPAWN_Y + 22, avatarName, {
               fontSize: "13px",
               color: "#cbd5e1",
             })
@@ -174,6 +221,39 @@ export default function PhaserGame({ avatarColor, avatarName, onEnterZone }: Pha
               this.currentZoneId = zoneId;
             });
           });
+
+          this.syncOthers(otherPlayers);
+        }
+
+        syncOthers(list: PresenceUser[]) {
+          const seen = new Set<string>();
+          list.forEach((p) => {
+            seen.add(p.userId);
+            const targetX = p.x ?? SPAWN_X;
+            const targetY = p.y ?? SPAWN_Y;
+            let entry = this.otherSprites.get(p.userId);
+            if (!entry) {
+              const hex = parseInt(AVATAR_HEX[p.color].replace("#", "0x"), 16);
+              const circle = this.add.circle(targetX, targetY, 16, hex).setAlpha(0.85);
+              circle.setStrokeStyle(2, 0xffffff, 0.6);
+              const label = this.add
+                .text(targetX, targetY + 26, p.name, { fontSize: "12px", color: "#94a3b8" })
+                .setOrigin(0.5);
+              entry = { circle, label, targetX, targetY };
+              this.otherSprites.set(p.userId, entry);
+            } else {
+              entry.targetX = targetX;
+              entry.targetY = targetY;
+            }
+          });
+
+          for (const [id, entry] of this.otherSprites) {
+            if (!seen.has(id)) {
+              entry.circle.destroy();
+              entry.label.destroy();
+              this.otherSprites.delete(id);
+            }
+          }
         }
 
         update() {
@@ -195,6 +275,17 @@ export default function PhaserGame({ avatarColor, avatarName, onEnterZone }: Pha
           if (nameTag) {
             nameTag.setPosition(this.player.x, this.player.y + 26);
           }
+
+          if (this.time.now - this.lastEmit > POSITION_EMIT_INTERVAL_MS) {
+            this.lastEmit = this.time.now;
+            onPositionChangeRef.current(this.player.x, this.player.y);
+          }
+
+          this.otherSprites.forEach((entry) => {
+            entry.circle.x = Phaser.Math.Linear(entry.circle.x, entry.targetX, 0.15);
+            entry.circle.y = Phaser.Math.Linear(entry.circle.y, entry.targetY, 0.15);
+            entry.label.setPosition(entry.circle.x, entry.circle.y + 26);
+          });
 
           const previousZoneId = this.currentZoneId;
           this.currentZoneId = null;
@@ -247,6 +338,7 @@ export default function PhaserGame({ avatarColor, avatarName, onEnterZone }: Pha
 
     return () => {
       destroyed = true;
+      sceneRef.current = null;
       gameRef.current?.destroy(true);
       gameRef.current = null;
     };

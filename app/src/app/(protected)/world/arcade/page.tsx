@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useVirtualWorldStore } from "@/lib/store";
+import PresenceBar from "@/components/PresenceBar";
 
 const GAMES = [
   {
@@ -34,6 +35,8 @@ export default function ArcadePage() {
         <h1 className="mt-1 text-2xl font-bold sm:text-3xl">🕹️ The Arcade</h1>
         <p className="text-slate-400">Pick a game and earn coins for your wins.</p>
       </div>
+
+      <PresenceBar room="arcade" activity="playing" />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {GAMES.map((g) => (

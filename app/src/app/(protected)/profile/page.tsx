@@ -94,6 +94,7 @@ export default function ProfilePage() {
             <StatTile label="Tic-Tac-Toe wins" value={stats.ticTacToeWins} accent="text-violet-300" />
             <StatTile label="Memory wins" value={stats.memoryWins} accent="text-violet-300" />
             <StatTile label="Recipes cooked" value={stats.recipesCooked} accent="text-emerald-300" />
+            <StatTile label="Shifts worked" value={stats.jobsWorked} accent="text-emerald-300" />
           </div>
         </section>
       </div>
