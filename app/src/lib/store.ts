@@ -4,6 +4,7 @@ import { createContext, useContext } from "react";
 import { createStore, useStore } from "zustand";
 import { createClient } from "@/lib/supabase/client";
 import { VENTURE_TEMPLATES, accruedCoins, ventureUpgradeCost, type VentureType } from "@/lib/ventures";
+import type { JobId } from "@/lib/jobs";
 
 export type AvatarColor = "indigo" | "rose" | "emerald" | "amber" | "sky" | "violet";
 
@@ -40,6 +41,8 @@ export interface Venture {
   lastCollectedAt: string;
 }
 
+export type JobProgress = Record<JobId, number>;
+
 export interface VirtualWorldInit {
   user: AuthUser;
   avatarName: string;
@@ -48,6 +51,7 @@ export interface VirtualWorldInit {
   inventory: InventoryItem[];
   stats: GameStats;
   ventures: Venture[];
+  jobProgress: JobProgress;
 }
 
 interface VirtualWorldState extends VirtualWorldInit {
@@ -61,6 +65,7 @@ interface VirtualWorldState extends VirtualWorldInit {
   collectVenture: (id: number) => void;
   upgradeVenture: (id: number) => boolean;
   refreshWallet: () => Promise<void>;
+  recordShift: (jobId: JobId) => void;
 }
 
 // Each request/session gets its own store instance (via StoreProvider) so
@@ -118,6 +123,18 @@ export function createVirtualWorldStore(init: VirtualWorldInit) {
         .from("game_stats")
         .update({ [STAT_COLUMN[game]]: nextStats[game] })
         .eq("user_id", user.id);
+    },
+
+    recordShift: (jobId) => {
+      const { user, jobProgress } = get();
+      const nextCount = (jobProgress[jobId] ?? 0) + 1;
+      set({ jobProgress: { ...jobProgress, [jobId]: nextCount } });
+      void createClient()
+        .from("job_progress")
+        .upsert(
+          { user_id: user.id, job_id: jobId, shifts_completed: nextCount },
+          { onConflict: "user_id,job_id" }
+        );
     },
 
     buyVenture: async (type) => {

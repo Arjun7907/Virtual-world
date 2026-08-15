@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useVirtualWorldStore } from "@/lib/store";
 import { AVATAR_COLORS, AVATAR_BG_CLASS, AVATAR_RING_CLASS } from "@/lib/avatarColors";
 import type { AvatarColor } from "@/lib/store";
+import { JOB_TIERS, levelForShifts, titleForLevel, type JobId } from "@/lib/jobs";
+
+const JOB_EMOJI: Record<JobId, string> = { barista: "☕", courier: "🛵", warehouse: "📦" };
 
 const CATEGORY_LABEL: Record<string, string> = {
   shop: "🛍️ Shop",
@@ -21,6 +24,7 @@ export default function ProfilePage() {
   const coins = useVirtualWorldStore((s) => s.coins);
   const inventory = useVirtualWorldStore((s) => s.inventory);
   const stats = useVirtualWorldStore((s) => s.stats);
+  const jobProgress = useVirtualWorldStore((s) => s.jobProgress);
 
   const [nameDraft, setNameDraft] = useState(avatarName);
 
@@ -98,6 +102,25 @@ export default function ProfilePage() {
           </div>
         </section>
       </div>
+
+      <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+        <h2 className="mb-4 font-semibold">Careers</h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {(Object.keys(JOB_TIERS) as JobId[]).map((jobId) => {
+            const shifts = jobProgress[jobId] ?? 0;
+            const level = levelForShifts(shifts);
+            return (
+              <div key={jobId} className="rounded-xl border border-slate-800 bg-slate-950 p-4 text-center">
+                <div className="text-2xl">{JOB_EMOJI[jobId]}</div>
+                <div className="text-sm font-semibold">{titleForLevel(jobId, level)}</div>
+                <div className="text-xs text-slate-500">
+                  Lv.{level} · {shifts} shift{shifts === 1 ? "" : "s"}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
         <h2 className="mb-4 font-semibold">Inventory</h2>

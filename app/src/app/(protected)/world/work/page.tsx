@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useVirtualWorldStore } from "@/lib/store";
+import type { JobProgress } from "@/lib/store";
 import PresenceBar from "@/components/PresenceBar";
+import { levelForShifts, payMultiplier, titleForLevel, shiftsToNextLevel, SHIFTS_PER_LEVEL, type JobId } from "@/lib/jobs";
 
 interface Option {
   id: string;
@@ -20,7 +22,7 @@ interface SortItem {
 type JobKind = "match" | "whack" | "sort";
 
 interface Job {
-  id: string;
+  id: JobId;
   title: string;
   emoji: string;
   description: string;
@@ -113,7 +115,9 @@ function shuffle<T>(arr: T[]): T[] {
 export default function WorkPage() {
   const addCoins = useVirtualWorldStore((s) => s.addCoins);
   const recordWin = useVirtualWorldStore((s) => s.recordWin);
+  const recordShift = useVirtualWorldStore((s) => s.recordShift);
   const jobsWorked = useVirtualWorldStore((s) => s.stats.jobsWorked);
+  const jobProgress = useVirtualWorldStore((s) => s.jobProgress);
 
   const [job, setJob] = useState<Job | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -131,6 +135,7 @@ export default function WorkPage() {
   const phaseRef = useRef<Phase>("idle");
   const jobRef = useRef<Job | null>(null);
   const completedRef = useRef(0);
+  const jobProgressRef = useRef<JobProgress>(jobProgress);
   const roundTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shiftTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -140,6 +145,9 @@ export default function WorkPage() {
   useEffect(() => {
     completedRef.current = completed;
   }, [completed]);
+  useEffect(() => {
+    jobProgressRef.current = jobProgress;
+  }, [jobProgress]);
 
   function clearRoundTimeout() {
     if (roundTimeoutRef.current) clearTimeout(roundTimeoutRef.current);
@@ -172,10 +180,13 @@ export default function WorkPage() {
   function finishShift(currentJob: Job) {
     clearRoundTimeout();
     clearShiftTimeout();
-    const earned = Math.min(completedRef.current, currentJob.cap) * currentJob.rate;
+    const shiftsSoFar = jobProgressRef.current[currentJob.id] ?? 0;
+    const level = levelForShifts(shiftsSoFar);
+    const earned = Math.round(Math.min(completedRef.current, currentJob.cap) * currentJob.rate * payMultiplier(level));
     setPayout(earned);
     addCoins(earned);
     recordWin("jobsWorked");
+    recordShift(currentJob.id);
     setPhase("done");
   }
 
@@ -252,21 +263,36 @@ export default function WorkPage() {
 
       {phase === "idle" && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {JOBS.map((j) => (
-            <button
-              key={j.id}
-              onClick={() => clockIn(j)}
-              className="flex flex-col items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-center transition hover:border-emerald-500/40 hover:bg-slate-900"
-            >
-              <div className="text-4xl">{j.emoji}</div>
-              <div className="font-semibold">{j.title}</div>
-              <p className="text-xs text-slate-500">{j.description}</p>
-              <div className="text-xs text-slate-500">
-                {j.seconds}s shift · 🪙 {j.rate}/task
-              </div>
-              <div className="text-sm text-emerald-300">Up to 🪙 {j.rate * j.cap}</div>
-            </button>
-          ))}
+          {JOBS.map((j) => {
+            const shifts = jobProgress[j.id] ?? 0;
+            const level = levelForShifts(shifts);
+            const title = titleForLevel(j.id, level);
+            const multiplier = payMultiplier(level);
+            const toNext = shiftsToNextLevel(shifts);
+            const maxPay = Math.round(j.rate * j.cap * multiplier);
+
+            return (
+              <button
+                key={j.id}
+                onClick={() => clockIn(j)}
+                className="flex flex-col items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-center transition hover:border-emerald-500/40 hover:bg-slate-900"
+              >
+                <div className="text-4xl">{j.emoji}</div>
+                <div className="font-semibold">{title}</div>
+                <div className="text-[11px] text-slate-500">
+                  Lv.{level} · {j.title}
+                </div>
+                <p className="text-xs text-slate-500">{j.description}</p>
+                <div className="text-xs text-slate-500">
+                  {j.seconds}s shift · 🪙 {(j.rate * multiplier).toFixed(1)}/task
+                </div>
+                <div className="text-sm text-emerald-300">Up to 🪙 {maxPay}</div>
+                <div className="text-[11px] text-slate-600">
+                  {toNext === null ? "Max level" : `${SHIFTS_PER_LEVEL - toNext}/${SHIFTS_PER_LEVEL} shifts to Lv.${level + 1}`}
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -282,7 +308,7 @@ export default function WorkPage() {
         >
           <div className="flex w-full items-center justify-between text-sm">
             <span className="font-semibold">
-              {job.emoji} {job.title}
+              {job.emoji} {titleForLevel(job.id, levelForShifts(jobProgress[job.id] ?? 0))}
             </span>
             <span className="text-slate-400">
               {completed}/{job.cap} tasks
@@ -360,6 +386,16 @@ export default function WorkPage() {
           <p className="text-slate-300">
             You completed {Math.min(completed, job.cap)} tasks and earned 🪙 {payout} coins.
           </p>
+          {(() => {
+            const shiftsNow = jobProgress[job.id] ?? 0;
+            const levelNow = levelForShifts(shiftsNow);
+            const leveledUp = shiftsNow > 0 && levelForShifts(shiftsNow - 1) < levelNow;
+            return leveledUp ? (
+              <p className="text-sm font-semibold text-amber-300">
+                🎉 Promoted to {titleForLevel(job.id, levelNow)} (Lv.{levelNow})!
+              </p>
+            ) : null;
+          })()}
           <button
             onClick={reset}
             className="mt-2 rounded-full bg-emerald-500 px-5 py-2 font-semibold text-white hover:bg-emerald-400"
