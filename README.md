@@ -42,11 +42,20 @@ Every room (Shop/Work/Business/Kitchen/Arcade/Exchange) shows a live "N
 people here right now" bar with the avatars of whoever else is currently
 there — the same presence system that drives the hub.
 
+- **Live globe** (public homepage) — a rotating 3D globe showing real,
+  currently-online players as glowing points on the actual map. Opt-in only:
+  logged-in players get a one-time prompt to share their (rounded, ~11km)
+  location; nothing is stored in a database, it's broadcast only while
+  they're online via the same Realtime Presence mechanism as everywhere
+  else, so declining or closing the tab removes you instantly.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) (App Router) + TypeScript
 - [Tailwind CSS](https://tailwindcss.com) for styling
 - [Phaser](https://phaser.io) for the walkable 2D world
+- [react-globe.gl](https://github.com/vasturiano/react-globe.gl) (three.js/WebGL)
+  for the live 3D globe
 - [Supabase](https://supabase.com) — Postgres + email/password auth, row
   level security, Realtime (Presence + Postgres Changes), and Postgres
   functions for the marketplace's money-handling
@@ -148,10 +157,13 @@ app/src/
   components/
     PhaserGame.tsx                the Phaser scene (hub map, avatar, zones)
     PresenceBar.tsx                "N people here now" bar used on every room
+    LiveGlobe.tsx, LiveMapSection.tsx  the public homepage's 3D globe
+    GlobePresence.tsx              opt-in consent banner + location broadcaster
     StoreProvider.tsx, WorldNav.tsx
   lib/
     store.ts                     per-request Zustand store (factory + context)
     presence.ts                   Supabase Realtime Presence hook
+    globeMap.ts                    live-globe presence hook (public, unauthenticated-safe)
     marketplace.ts                 marketplace RPC calls + live listings hook
     ventures.ts                    venture templates/economics (pure functions)
     jobs.ts                        job leveling/titles/pay-multiplier (pure functions)
