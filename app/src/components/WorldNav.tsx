@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useVirtualWorldStore } from "@/lib/store";
 import { AVATAR_BG_CLASS } from "@/lib/avatarColors";
+import { createClient } from "@/lib/supabase/client";
 
 const LINKS = [
   { href: "/world", label: "Hub", icon: "🗺️" },
@@ -19,11 +20,11 @@ export default function WorldNav() {
   const coins = useVirtualWorldStore((s) => s.coins);
   const avatarColor = useVirtualWorldStore((s) => s.avatarColor);
   const avatarName = useVirtualWorldStore((s) => s.avatarName);
-  const logout = useVirtualWorldStore((s) => s.logout);
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await createClient().auth.signOut();
     router.push("/");
+    router.refresh();
   }
 
   return (

@@ -17,12 +17,11 @@ export default function WorldHubPage() {
   const router = useRouter();
   const avatarColor = useVirtualWorldStore((s) => s.avatarColor);
   const avatarName = useVirtualWorldStore((s) => s.avatarName);
-  const userName = useVirtualWorldStore((s) => s.user?.name);
 
   return (
     <div className="flex flex-col items-center gap-6">
       <div className="text-center">
-        <h1 className="text-2xl font-bold sm:text-3xl">Welcome back, {userName?.split(" ")[0] ?? "explorer"} 👋</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">Welcome back, {avatarName} 👋</h1>
         <p className="mt-1 text-slate-400">
           Walk into a building to jump into that activity.
         </p>

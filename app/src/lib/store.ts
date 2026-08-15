@@ -1,7 +1,8 @@
 "use client";
 
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createContext, useContext } from "react";
+import { createStore, useStore } from "zustand";
+import { createClient } from "@/lib/supabase/client";
 
 export type AvatarColor = "indigo" | "rose" | "emerald" | "amber" | "sky" | "violet";
 
@@ -13,7 +14,7 @@ export interface InventoryItem {
 }
 
 export interface AuthUser {
-  name: string;
+  id: string;
   email: string;
 }
 
@@ -23,16 +24,22 @@ interface GameStats {
   recipesCooked: number;
 }
 
-interface VirtualWorldState {
-  user: AuthUser | null;
-  avatarColor: AvatarColor;
+const STAT_COLUMN: Record<keyof GameStats, string> = {
+  ticTacToeWins: "tic_tac_toe_wins",
+  memoryWins: "memory_wins",
+  recipesCooked: "recipes_cooked",
+};
+
+export interface VirtualWorldInit {
+  user: AuthUser;
   avatarName: string;
+  avatarColor: AvatarColor;
   coins: number;
   inventory: InventoryItem[];
   stats: GameStats;
+}
 
-  login: (user: AuthUser) => void;
-  logout: () => void;
+interface VirtualWorldState extends VirtualWorldInit {
   setAvatarColor: (color: AvatarColor) => void;
   setAvatarName: (name: string) => void;
   addCoins: (amount: number) => void;
@@ -41,48 +48,73 @@ interface VirtualWorldState {
   recordWin: (game: keyof GameStats) => void;
 }
 
-const STARTING_COINS = 150;
+// Each request/session gets its own store instance (via StoreProvider) so
+// server-fetched user data never leaks across requests through a shared
+// module-level singleton.
+export function createVirtualWorldStore(init: VirtualWorldInit) {
+  return createStore<VirtualWorldState>()((set, get) => ({
+    ...init,
 
-export const useVirtualWorldStore = create<VirtualWorldState>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      avatarColor: "indigo",
-      avatarName: "Explorer",
-      coins: STARTING_COINS,
-      inventory: [],
-      stats: { ticTacToeWins: 0, memoryWins: 0, recipesCooked: 0 },
+    setAvatarColor: (avatarColor) => {
+      set({ avatarColor });
+      void createClient().from("profiles").update({ avatar_color: avatarColor }).eq("id", get().user.id);
+    },
 
-      login: (user) =>
-        set((state) => ({
-          user,
-          avatarName: state.avatarName === "Explorer" ? user.name.split(" ")[0] : state.avatarName,
-        })),
+    setAvatarName: (avatarName) => {
+      set({ avatarName });
+      void createClient().from("profiles").update({ avatar_name: avatarName }).eq("id", get().user.id);
+    },
 
-      logout: () => set({ user: null }),
+    addCoins: (amount) => {
+      const { user, coins } = get();
+      const next = coins + amount;
+      set({ coins: next });
+      void createClient().from("profiles").update({ coins: next }).eq("id", user.id);
+    },
 
-      setAvatarColor: (avatarColor) => set({ avatarColor }),
-      setAvatarName: (avatarName) => set({ avatarName }),
+    spendCoins: (amount) => {
+      const { user, coins } = get();
+      if (coins < amount) return false;
+      const next = coins - amount;
+      set({ coins: next });
+      void createClient().from("profiles").update({ coins: next }).eq("id", user.id);
+      return true;
+    },
 
-      addCoins: (amount) => set((state) => ({ coins: state.coins + amount })),
+    addInventoryItem: (item) => {
+      const { user } = get();
+      set((state) => ({ inventory: [...state.inventory, item] }));
+      void createClient()
+        .from("inventory_items")
+        .insert({
+          user_id: user.id,
+          item_id: item.id,
+          name: item.name,
+          emoji: item.emoji,
+          category: item.category,
+        });
+    },
 
-      spendCoins: (amount) => {
-        const { coins } = get();
-        if (coins < amount) return false;
-        set({ coins: coins - amount });
-        return true;
-      },
+    recordWin: (game) => {
+      const { user, stats } = get();
+      const nextStats = { ...stats, [game]: stats[game] + 1 };
+      set({ stats: nextStats });
+      void createClient()
+        .from("game_stats")
+        .update({ [STAT_COLUMN[game]]: nextStats[game] })
+        .eq("user_id", user.id);
+    },
+  }));
+}
 
-      addInventoryItem: (item) =>
-        set((state) => ({ inventory: [...state.inventory, item] })),
+export type VirtualWorldStore = ReturnType<typeof createVirtualWorldStore>;
 
-      recordWin: (game) =>
-        set((state) => ({
-          stats: { ...state.stats, [game]: state.stats[game] + 1 },
-        })),
-    }),
-    {
-      name: "virtual-world-state",
-    }
-  )
-);
+export const VirtualWorldStoreContext = createContext<VirtualWorldStore | null>(null);
+
+export function useVirtualWorldStore<T>(selector: (state: VirtualWorldState) => T): T {
+  const store = useContext(VirtualWorldStoreContext);
+  if (!store) {
+    throw new Error("useVirtualWorldStore must be used within a StoreProvider");
+  }
+  return useStore(store, selector);
+}

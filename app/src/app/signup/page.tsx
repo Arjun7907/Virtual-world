@@ -3,31 +3,69 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useVirtualWorldStore } from "@/lib/store";
+import { createClient } from "@/lib/supabase/client";
 import { AVATAR_COLORS, AVATAR_BG_CLASS, AVATAR_RING_CLASS } from "@/lib/avatarColors";
 import type { AvatarColor } from "@/lib/store";
 
 export default function SignupPage() {
   const router = useRouter();
-  const login = useVirtualWorldStore((s) => s.login);
-  const setAvatarColor = useVirtualWorldStore((s) => s.setAvatarColor);
-  const setAvatarName = useVirtualWorldStore((s) => s.setAvatarName);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [color, setColor] = useState<AvatarColor>("indigo");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [checkEmail, setCheckEmail] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !email.trim()) {
-      setError("Enter both your name and email to continue.");
+    setError("");
+    if (!name.trim() || !email.trim() || password.length < 6) {
+      setError("Enter your name, email, and a password with at least 6 characters.");
       return;
     }
-    login({ name: name.trim(), email: email.trim() });
-    setAvatarName(name.trim().split(" ")[0]);
-    setAvatarColor(color);
+    setLoading(true);
+    const { data, error: signUpError } = await createClient().auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: { display_name: name.trim(), avatar_color: color },
+      },
+    });
+    setLoading(false);
+    if (signUpError) {
+      setError(signUpError.message);
+      return;
+    }
+    if (!data.session) {
+      // Email confirmation is required before a session is issued.
+      setCheckEmail(true);
+      return;
+    }
     router.push("/world");
+    router.refresh();
+  }
+
+  if (checkEmail) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-6 py-16">
+        <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/60 p-8 text-center">
+          <div className="mb-3 text-4xl">📬</div>
+          <h1 className="mb-2 text-xl font-bold">Check your email</h1>
+          <p className="text-sm text-slate-400">
+            We sent a confirmation link to <span className="text-slate-200">{email}</span>. Click it, then come
+            back and log in.
+          </p>
+          <Link
+            href="/login"
+            className="mt-6 inline-block rounded-full bg-indigo-500 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-400"
+          >
+            Go to login
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -56,7 +94,19 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               type="email"
+              autoComplete="email"
               placeholder="ada@example.com"
+              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none focus:border-indigo-500"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            Password
+            <input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              type="password"
+              autoComplete="new-password"
+              placeholder="At least 6 characters"
               className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none focus:border-indigo-500"
             />
           </label>
@@ -79,9 +129,10 @@ export default function SignupPage() {
           {error && <p className="text-sm text-rose-400">{error}</p>}
           <button
             type="submit"
-            className="mt-2 rounded-full bg-indigo-500 px-4 py-2.5 font-semibold text-white hover:bg-indigo-400 transition"
+            disabled={loading}
+            className="mt-2 rounded-full bg-indigo-500 px-4 py-2.5 font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Start exploring
+            {loading ? "Creating avatar…" : "Start exploring"}
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-slate-400">
