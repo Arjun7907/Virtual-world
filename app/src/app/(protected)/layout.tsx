@@ -2,8 +2,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import StoreProvider from "@/components/StoreProvider";
 import WorldNav from "@/components/WorldNav";
-import type { AvatarColor, InventoryItem, VirtualWorldInit, Venture } from "@/lib/store";
+import type { AvatarColor, InventoryItem, VirtualWorldInit, Venture, JobProgress } from "@/lib/store";
 import type { VentureType } from "@/lib/ventures";
+import type { JobId } from "@/lib/jobs";
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -15,7 +16,8 @@ export default async function ProtectedLayout({ children }: { children: React.Re
     redirect("/login");
   }
 
-  const [{ data: profile }, { data: stats }, { data: inventoryRows }, { data: ventureRows }] = await Promise.all([
+  const [{ data: profile }, { data: stats }, { data: inventoryRows }, { data: ventureRows }, { data: jobRows }] =
+    await Promise.all([
     supabase.from("profiles").select("avatar_name, avatar_color, coins").eq("id", user.id).single(),
     supabase
       .from("game_stats")
@@ -31,6 +33,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
       .from("ventures")
       .select("id, venture_type, level, last_collected_at")
       .eq("user_id", user.id),
+    supabase.from("job_progress").select("job_id, shifts_completed").eq("user_id", user.id),
   ]);
 
   const inventory: InventoryItem[] = (inventoryRows ?? []).map((row) => ({
@@ -47,6 +50,11 @@ export default async function ProtectedLayout({ children }: { children: React.Re
     lastCollectedAt: row.last_collected_at,
   }));
 
+  const jobProgress: JobProgress = { barista: 0, courier: 0, warehouse: 0 };
+  (jobRows ?? []).forEach((row) => {
+    jobProgress[row.job_id as JobId] = row.shifts_completed;
+  });
+
   const init: VirtualWorldInit = {
     user: { id: user.id, email: user.email ?? "" },
     avatarName: profile?.avatar_name ?? "Explorer",
@@ -60,6 +68,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
       jobsWorked: stats?.jobs_worked ?? 0,
     },
     ventures,
+    jobProgress,
   };
 
   return (

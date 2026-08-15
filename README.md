@@ -154,10 +154,23 @@ app/src/
     presence.ts                   Supabase Realtime Presence hook
     marketplace.ts                 marketplace RPC calls + live listings hook
     ventures.ts                    venture templates/economics (pure functions)
+    jobs.ts                        job leveling/titles/pay-multiplier (pure functions)
     supabase/client.ts, server.ts, middleware.ts, config.ts
     avatarColors.ts               avatar color palette + Tailwind class maps
   proxy.ts                        session refresh + route protection
 ```
+
+Job progression (levels, titles, pay multiplier) is stored in a `job_progress`
+table (one row per user per job) and computed via pure functions in
+`src/lib/jobs.ts` — every 5 completed shifts levels a job up, raising its pay
+multiplier and unlocking a new title (e.g. Trainee Barista → Barista → Head
+Barista → Café Manager), shown on the Work page and in a Careers section on
+the Profile page.
+
+Auctions close automatically: a `pg_cron` job calls
+`resolve_expired_auctions()` every minute server-side, on top of the
+opportunistic calls the Exchange page already makes (page load + 15s poll),
+so listings resolve even when nobody has the page open.
 
 ## Extending this into a real product
 
@@ -167,13 +180,6 @@ The natural next steps, roughly in order of effort:
    `PhaserGame.tsx`) is just a list of `{ id, label, x, y, width, height, href }`
    rectangles; adding a new building + activity page is the same pattern used
    for the existing zones.
-2. **Career progression for jobs** — right now each job pays a flat rate;
-   leveling up a job (raises, promotions, unlocking new roles) would give
-   repeat play a payoff beyond flat coins.
-3. **Richer world art** — the hub currently draws simple shapes/emoji in
+2. **Richer world art** — the hub currently draws simple shapes/emoji in
    Phaser; swapping in a tileset (e.g. via Tiled + `phaser-tiled` or a WAM map
    like WorkAdventure uses) would make it feel like a real place.
-4. **Scheduled auction cleanup** — `resolve_expired_auctions` currently runs
-   opportunistically (page load + 15s poll on the Exchange); a `pg_cron` job
-   calling it every minute would close out auctions even when nobody has the
-   page open.
