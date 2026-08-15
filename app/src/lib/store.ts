@@ -3,6 +3,7 @@
 import { createContext, useContext } from "react";
 import { createStore, useStore } from "zustand";
 import { createClient } from "@/lib/supabase/client";
+import { VENTURE_TEMPLATES, accruedCoins, ventureUpgradeCost, type VentureType } from "@/lib/ventures";
 
 export type AvatarColor = "indigo" | "rose" | "emerald" | "amber" | "sky" | "violet";
 
@@ -32,6 +33,13 @@ const STAT_COLUMN: Record<keyof GameStats, string> = {
   jobsWorked: "jobs_worked",
 };
 
+export interface Venture {
+  id: number;
+  type: VentureType;
+  level: number;
+  lastCollectedAt: string;
+}
+
 export interface VirtualWorldInit {
   user: AuthUser;
   avatarName: string;
@@ -39,6 +47,7 @@ export interface VirtualWorldInit {
   coins: number;
   inventory: InventoryItem[];
   stats: GameStats;
+  ventures: Venture[];
 }
 
 interface VirtualWorldState extends VirtualWorldInit {
@@ -48,6 +57,9 @@ interface VirtualWorldState extends VirtualWorldInit {
   spendCoins: (amount: number) => boolean;
   addInventoryItem: (item: InventoryItem) => void;
   recordWin: (game: keyof GameStats) => void;
+  buyVenture: (type: VentureType) => Promise<boolean>;
+  collectVenture: (id: number) => void;
+  upgradeVenture: (id: number) => boolean;
 }
 
 // Each request/session gets its own store instance (via StoreProvider) so
@@ -105,6 +117,67 @@ export function createVirtualWorldStore(init: VirtualWorldInit) {
         .from("game_stats")
         .update({ [STAT_COLUMN[game]]: nextStats[game] })
         .eq("user_id", user.id);
+    },
+
+    buyVenture: async (type) => {
+      const { user, ventures, spendCoins, addCoins } = get();
+      if (ventures.some((v) => v.type === type)) return false;
+      const template = VENTURE_TEMPLATES[type];
+      if (!spendCoins(template.cost)) return false;
+
+      const { data, error } = await createClient()
+        .from("ventures")
+        .insert({ user_id: user.id, venture_type: type })
+        .select("id, venture_type, level, last_collected_at")
+        .single();
+
+      if (error || !data) {
+        addCoins(template.cost);
+        return false;
+      }
+
+      set((state) => ({
+        ventures: [
+          ...state.ventures,
+          {
+            id: data.id,
+            type: data.venture_type as VentureType,
+            level: data.level,
+            lastCollectedAt: data.last_collected_at,
+          },
+        ],
+      }));
+      return true;
+    },
+
+    collectVenture: (id) => {
+      const { user, ventures, addCoins } = get();
+      const venture = ventures.find((v) => v.id === id);
+      if (!venture) return;
+      const template = VENTURE_TEMPLATES[venture.type];
+      const earned = accruedCoins(template, venture.level, venture.lastCollectedAt);
+      if (earned <= 0) return;
+      const nowIso = new Date().toISOString();
+      addCoins(earned);
+      set((state) => ({
+        ventures: state.ventures.map((v) => (v.id === id ? { ...v, lastCollectedAt: nowIso } : v)),
+      }));
+      void createClient().from("ventures").update({ last_collected_at: nowIso }).eq("id", id).eq("user_id", user.id);
+    },
+
+    upgradeVenture: (id) => {
+      const { user, ventures, spendCoins } = get();
+      const venture = ventures.find((v) => v.id === id);
+      if (!venture) return false;
+      const template = VENTURE_TEMPLATES[venture.type];
+      const cost = ventureUpgradeCost(template, venture.level);
+      if (!spendCoins(cost)) return false;
+      const nextLevel = venture.level + 1;
+      set((state) => ({
+        ventures: state.ventures.map((v) => (v.id === id ? { ...v, level: nextLevel } : v)),
+      }));
+      void createClient().from("ventures").update({ level: nextLevel }).eq("id", id).eq("user_id", user.id);
+      return true;
     },
   }));
 }
