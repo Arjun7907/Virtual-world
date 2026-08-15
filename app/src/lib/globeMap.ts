@@ -11,13 +11,14 @@ export interface GlobeViewer {
   userId: string;
   name: string;
   color: AvatarColor;
+  city: string;
   lat: number;
   lng: number;
   joinedAt: number;
 }
 
 /**
- * Read-only: who's currently broadcasting their (opted-in, rounded)
+ * Read-only: who's currently broadcasting their (opted-in, city-level)
  * location. Safe to use from an unauthenticated page — presence channels
  * aren't gated by table RLS, only the publishable key is needed.
  */

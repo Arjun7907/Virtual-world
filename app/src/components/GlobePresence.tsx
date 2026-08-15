@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useVirtualWorldStore } from "@/lib/store";
 import { GLOBE_CHANNEL, GLOBE_CONSENT_KEY } from "@/lib/globeMap";
+import { nearestCity } from "@/lib/cityAnchors";
 
 type Consent = "unknown" | "granted" | "declined";
 
@@ -44,11 +45,11 @@ export default function GlobePresence() {
       if (!navigator.geolocation) return;
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          // Rounded to ~11km — enough to place a dot on a world globe
-          // without pinpointing anyone's exact address.
-          const lat = Math.round(pos.coords.latitude * 10) / 10;
-          const lng = Math.round(pos.coords.longitude * 10) / 10;
-          channel.track({ userId, name: avatarName, color: avatarColor, lat, lng, joinedAt });
+          // Snapped to the nearest of ~20 world city anchors (plus jitter)
+          // rather than broadcasting the device's actual coordinates —
+          // city-level only, never anything more precise.
+          const { name: city, lat, lng } = nearestCity(pos.coords.latitude, pos.coords.longitude);
+          channel.track({ userId, name: avatarName, color: avatarColor, city, lat, lng, joinedAt });
         },
         () => {},
         { maximumAge: 10 * 60 * 1000, timeout: 8000 }
@@ -94,8 +95,8 @@ export default function GlobePresence() {
   return (
     <div className="fixed inset-x-4 bottom-4 z-30 mx-auto flex max-w-xl flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/95 p-4 shadow-2xl backdrop-blur sm:flex-row sm:items-center">
       <p className="flex-1 text-sm text-slate-300">
-        🌍 Show yourself on the live global map on our homepage? We use your approximate location only while
-        you&apos;re online — nothing is stored.
+        🌍 Show yourself on the live global map on our homepage? We only ever show your nearest major city —
+        never your exact location — and only while you&apos;re online. Nothing is stored.
       </p>
       <div className="flex shrink-0 gap-2">
         <button

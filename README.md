@@ -44,10 +44,14 @@ there — the same presence system that drives the hub.
 
 - **Live globe** (public homepage) — a rotating 3D globe showing real,
   currently-online players as glowing points on the actual map. Opt-in only:
-  logged-in players get a one-time prompt to share their (rounded, ~11km)
-  location; nothing is stored in a database, it's broadcast only while
-  they're online via the same Realtime Presence mechanism as everywhere
-  else, so declining or closing the tab removes you instantly.
+  logged-in players get a one-time prompt to share their location; the
+  device's GPS reading is snapped to the nearest of ~20 world-city anchors
+  (`src/lib/cityAnchors.ts`) before it's ever broadcast, so nothing more
+  precise than "which city, roughly" leaves the browser. Nothing is stored
+  in a database — it's broadcast only while online via the same Realtime
+  Presence mechanism as everywhere else, so declining or closing the tab
+  removes you instantly. Click a light to see who it is; new joins get a
+  brief ripple.
 
 ## Tech stack
 

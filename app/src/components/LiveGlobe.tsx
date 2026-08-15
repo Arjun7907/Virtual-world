@@ -13,6 +13,7 @@ const RIPPLE_LIFETIME_MS = 2600;
 interface Point {
   userId: string;
   name: string;
+  city: string;
   lat: number;
   lng: number;
   color: string;
@@ -49,6 +50,7 @@ export default function LiveGlobe({
   const points: Point[] = viewers.map((v) => ({
     userId: v.userId,
     name: v.name,
+    city: v.city,
     lat: v.lat,
     lng: v.lng,
     color: AVATAR_HEX[v.color],
@@ -77,7 +79,10 @@ export default function LiveGlobe({
         pointColor="color"
         pointAltitude={0.02}
         pointRadius={0.5}
-        pointLabel="name"
+        pointLabel={(p: object) => {
+          const point = p as Point;
+          return `${point.name} — near ${point.city}`;
+        }}
         onPointClick={(p: object) => {
           const point = p as Point;
           const viewer = byUserId.get(point.userId);

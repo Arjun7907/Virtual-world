@@ -26,9 +26,7 @@ export default function LiveMapSection() {
           <span className={`h-8 w-8 shrink-0 rounded-full ${AVATAR_BG_CLASS[selected.color]}`} />
           <div className="text-left">
             <div className="text-sm font-semibold">{selected.name}</div>
-            <div className="text-xs text-slate-500">
-              exploring from {selected.lat.toFixed(1)}, {selected.lng.toFixed(1)}
-            </div>
+            <div className="text-xs text-slate-500">exploring from near {selected.city}</div>
           </div>
           <button
             onClick={() => setSelected(null)}
