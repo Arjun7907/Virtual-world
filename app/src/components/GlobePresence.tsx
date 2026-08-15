@@ -36,6 +36,9 @@ export default function GlobePresence() {
 
     const supabase = createClient();
     const channel = supabase.channel(GLOBE_CHANNEL, { config: { presence: { key: userId } } });
+    // Fixed once per session so viewers' join-ripple only fires on the
+    // actual join, not on every periodic location refresh.
+    const joinedAt = Date.now();
 
     function publishLocation() {
       if (!navigator.geolocation) return;
@@ -45,7 +48,7 @@ export default function GlobePresence() {
           // without pinpointing anyone's exact address.
           const lat = Math.round(pos.coords.latitude * 10) / 10;
           const lng = Math.round(pos.coords.longitude * 10) / 10;
-          channel.track({ userId, name: avatarName, color: avatarColor, lat, lng });
+          channel.track({ userId, name: avatarName, color: avatarColor, lat, lng, joinedAt });
         },
         () => {},
         { maximumAge: 10 * 60 * 1000, timeout: 8000 }

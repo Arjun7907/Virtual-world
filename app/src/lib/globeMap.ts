@@ -13,6 +13,7 @@ export interface GlobeViewer {
   color: AvatarColor;
   lat: number;
   lng: number;
+  joinedAt: number;
 }
 
 /**

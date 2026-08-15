@@ -8,10 +8,27 @@ import type { GlobeViewer } from "@/lib/globeMap";
 
 const Globe = dynamic(() => import("react-globe.gl"), { ssr: false });
 
-export default function LiveGlobe({ viewers }: { viewers: GlobeViewer[] }) {
+const RIPPLE_LIFETIME_MS = 2600;
+
+interface Point {
+  userId: string;
+  name: string;
+  lat: number;
+  lng: number;
+  color: string;
+}
+
+export default function LiveGlobe({
+  viewers,
+  onSelect,
+}: {
+  viewers: GlobeViewer[];
+  onSelect?: (viewer: GlobeViewer) => void;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const [size, setSize] = useState(360);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -23,12 +40,25 @@ export default function LiveGlobe({ viewers }: { viewers: GlobeViewer[] }) {
     return () => observer.disconnect();
   }, []);
 
-  const points = viewers.map((v) => ({
+  // Drives the ripple fade — cheap tick, not per-frame.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 200);
+    return () => clearInterval(t);
+  }, []);
+
+  const points: Point[] = viewers.map((v) => ({
+    userId: v.userId,
+    name: v.name,
     lat: v.lat,
     lng: v.lng,
     color: AVATAR_HEX[v.color],
-    name: v.name,
   }));
+
+  const byUserId = new Map(viewers.map((v) => [v.userId, v]));
+
+  const rings = viewers
+    .filter((v) => now - v.joinedAt < RIPPLE_LIFETIME_MS)
+    .map((v) => ({ lat: v.lat, lng: v.lng, color: AVATAR_HEX[v.color] }));
 
   return (
     <div ref={containerRef} className="mx-auto aspect-square w-full max-w-[440px]">
@@ -48,11 +78,31 @@ export default function LiveGlobe({ viewers }: { viewers: GlobeViewer[] }) {
         pointAltitude={0.02}
         pointRadius={0.5}
         pointLabel="name"
+        onPointClick={(p: object) => {
+          const point = p as Point;
+          const viewer = byUserId.get(point.userId);
+          if (viewer) onSelect?.(viewer);
+        }}
+        ringsData={rings}
+        ringLat="lat"
+        ringLng="lng"
+        ringColor={(r: object) => {
+          const color = (r as { color: string }).color;
+          return (t: number) => {
+            const alpha = Math.round((1 - t) * 255)
+              .toString(16)
+              .padStart(2, "0");
+            return `${color}${alpha}`;
+          };
+        }}
+        ringMaxRadius={4}
+        ringPropagationSpeed={2.4}
+        ringRepeatPeriod={RIPPLE_LIFETIME_MS}
         onGlobeReady={() => {
           const controls = globeRef.current?.controls();
           if (controls) {
             controls.autoRotate = true;
-            controls.autoRotateSpeed = 0.6;
+            controls.autoRotateSpeed = 0.5;
             controls.enableZoom = false;
           }
         }}
