@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import StoreProvider from "@/components/StoreProvider";
 import WorldNav from "@/components/WorldNav";
-import type { AvatarColor, InventoryItem, VirtualWorldInit } from "@/lib/store";
+import type { AvatarColor, InventoryItem, VirtualWorldInit, Venture } from "@/lib/store";
+import type { VentureType } from "@/lib/ventures";
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -14,7 +15,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
     redirect("/login");
   }
 
-  const [{ data: profile }, { data: stats }, { data: inventoryRows }] = await Promise.all([
+  const [{ data: profile }, { data: stats }, { data: inventoryRows }, { data: ventureRows }] = await Promise.all([
     supabase.from("profiles").select("avatar_name, avatar_color, coins").eq("id", user.id).single(),
     supabase
       .from("game_stats")
@@ -26,6 +27,10 @@ export default async function ProtectedLayout({ children }: { children: React.Re
       .select("item_id, name, emoji, category")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true }),
+    supabase
+      .from("ventures")
+      .select("id, venture_type, level, last_collected_at")
+      .eq("user_id", user.id),
   ]);
 
   const inventory: InventoryItem[] = (inventoryRows ?? []).map((row) => ({
@@ -33,6 +38,13 @@ export default async function ProtectedLayout({ children }: { children: React.Re
     name: row.name,
     emoji: row.emoji,
     category: row.category as InventoryItem["category"],
+  }));
+
+  const ventures: Venture[] = (ventureRows ?? []).map((row) => ({
+    id: row.id,
+    type: row.venture_type as VentureType,
+    level: row.level,
+    lastCollectedAt: row.last_collected_at,
   }));
 
   const init: VirtualWorldInit = {
@@ -47,6 +59,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
       recipesCooked: stats?.recipes_cooked ?? 0,
       jobsWorked: stats?.jobs_worked ?? 0,
     },
+    ventures,
   };
 
   return (

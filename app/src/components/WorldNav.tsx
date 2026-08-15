@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/world", label: "Hub", icon: "🗺️" },
   { href: "/world/shop", label: "Shop", icon: "🛍️" },
   { href: "/world/work", label: "Work", icon: "💼" },
+  { href: "/world/business", label: "Business", icon: "🚀" },
   { href: "/world/kitchen", label: "Kitchen", icon: "🍳" },
   { href: "/world/arcade", label: "Arcade", icon: "🕹️" },
   { href: "/profile", label: "Profile", icon: "🧑‍🎤" },

@@ -7,6 +7,16 @@ const ACTIVITIES = [
     description: "Browse the mall, fill your cart, and check out with coins you've earned.",
   },
   {
+    emoji: "💼",
+    title: "Work",
+    description: "Clock in to a shift — barista, courier, warehouse — and earn coins by effort.",
+  },
+  {
+    emoji: "🚀",
+    title: "Build a business",
+    description: "Start a venture that earns coins for you over time, even while you're away.",
+  },
+  {
     emoji: "🍳",
     title: "Cook",
     description: "Follow interactive recipes in the kitchen and plate up before the timer runs out.",
