@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useGlobeViewers, type GlobeViewer } from "@/lib/globeMap";
 import LiveGlobe from "@/components/LiveGlobe";
@@ -33,26 +32,17 @@ function GlobeChrome({ signedIn }: { signedIn: boolean }) {
         </p>
       </div>
 
-      {signedIn ? (
+      {signedIn && (
         <button
           onClick={signOut}
           className="fixed top-7 right-7 z-10 font-mono text-xs text-slate-500 hover:text-slate-300"
         >
           sign out
         </button>
-      ) : (
-        <div className="fixed top-7 right-7 z-10 flex items-center gap-4 font-mono text-xs text-slate-500">
-          <Link href="/login" className="hover:text-slate-300">
-            log in
-          </Link>
-          <Link href="/signup" className="hover:text-slate-300">
-            sign up
-          </Link>
-        </div>
       )}
 
       <div className="pointer-events-none fixed bottom-6 left-1/2 z-10 -translate-x-1/2 text-center font-mono text-xs text-slate-500">
-        {signedIn ? "click a light to say hi" : "sign up to show up as a light yourself"}
+        click a light to say hi · drag to look around
       </div>
 
       <aside

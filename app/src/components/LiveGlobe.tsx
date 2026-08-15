@@ -108,9 +108,13 @@ export default function LiveGlobe({
         onGlobeReady={() => {
           const controls = globeRef.current?.controls();
           if (controls) {
-            controls.autoRotate = true;
-            controls.autoRotateSpeed = 0.5;
-            controls.enableZoom = false;
+            // Behaves like a draggable map: no auto-rotation fighting the
+            // user's input, free rotate + zoom so they're fully in control.
+            controls.autoRotate = false;
+            controls.enableZoom = true;
+            controls.enableRotate = true;
+            controls.rotateSpeed = 0.6;
+            controls.zoomSpeed = 0.8;
           }
         }}
       />
