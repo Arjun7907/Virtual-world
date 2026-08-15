@@ -18,7 +18,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
     supabase.from("profiles").select("avatar_name, avatar_color, coins").eq("id", user.id).single(),
     supabase
       .from("game_stats")
-      .select("tic_tac_toe_wins, memory_wins, recipes_cooked")
+      .select("tic_tac_toe_wins, memory_wins, recipes_cooked, jobs_worked")
       .eq("user_id", user.id)
       .single(),
     supabase
@@ -45,6 +45,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
       ticTacToeWins: stats?.tic_tac_toe_wins ?? 0,
       memoryWins: stats?.memory_wins ?? 0,
       recipesCooked: stats?.recipes_cooked ?? 0,
+      jobsWorked: stats?.jobs_worked ?? 0,
     },
   };
 

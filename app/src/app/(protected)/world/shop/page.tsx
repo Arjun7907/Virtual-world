@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useVirtualWorldStore } from "@/lib/store";
 import type { InventoryItem } from "@/lib/store";
+import PresenceBar from "@/components/PresenceBar";
 
 interface Product {
   id: string;
@@ -90,6 +91,8 @@ export default function ShopPage() {
           🪙 {coins} coins
         </div>
       </div>
+
+      <PresenceBar room="shop" activity="shopping" />
 
       <div className="flex flex-wrap gap-2">
         {CATEGORIES.map((c) => (

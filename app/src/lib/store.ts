@@ -22,12 +22,14 @@ interface GameStats {
   ticTacToeWins: number;
   memoryWins: number;
   recipesCooked: number;
+  jobsWorked: number;
 }
 
 const STAT_COLUMN: Record<keyof GameStats, string> = {
   ticTacToeWins: "tic_tac_toe_wins",
   memoryWins: "memory_wins",
   recipesCooked: "recipes_cooked",
+  jobsWorked: "jobs_worked",
 };
 
 export interface VirtualWorldInit {

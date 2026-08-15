@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useVirtualWorldStore } from "@/lib/store";
+import PresenceBar from "@/components/PresenceBar";
 
 interface Recipe {
   id: string;
@@ -143,6 +144,8 @@ export default function KitchenPage() {
           </p>
         </div>
       </div>
+
+      <PresenceBar room="kitchen" activity="cooking" />
 
       {phase === "idle" && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
