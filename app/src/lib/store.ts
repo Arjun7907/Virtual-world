@@ -60,6 +60,7 @@ interface VirtualWorldState extends VirtualWorldInit {
   buyVenture: (type: VentureType) => Promise<boolean>;
   collectVenture: (id: number) => void;
   upgradeVenture: (id: number) => boolean;
+  refreshWallet: () => Promise<void>;
 }
 
 // Each request/session gets its own store instance (via StoreProvider) so
@@ -178,6 +179,31 @@ export function createVirtualWorldStore(init: VirtualWorldInit) {
       }));
       void createClient().from("ventures").update({ level: nextLevel }).eq("id", id).eq("user_id", user.id);
       return true;
+    },
+
+    // Re-syncs coins/inventory after a marketplace RPC (buy/bid/sell) moved
+    // money and items server-side, bypassing the usual store actions.
+    refreshWallet: async () => {
+      const { user } = get();
+      const supabase = createClient();
+      const [{ data: profile }, { data: items }] = await Promise.all([
+        supabase.from("profiles").select("coins").eq("id", user.id).single(),
+        supabase
+          .from("inventory_items")
+          .select("item_id, name, emoji, category")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true }),
+      ]);
+
+      set({
+        coins: profile?.coins ?? get().coins,
+        inventory: (items ?? []).map((row) => ({
+          id: row.item_id,
+          name: row.name,
+          emoji: row.emoji,
+          category: row.category as InventoryItem["category"],
+        })),
+      });
     },
   }));
 }
